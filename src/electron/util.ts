@@ -35,7 +35,7 @@ export const config = {
   // Development settings
   dev: {
     devServerUrl: 'http://localhost:5173',
-    openDevTools: true,
+    openDevTools: false,
   },
 
   // Production settings

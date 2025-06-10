@@ -3,8 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path_1 = require("path");
 const util_js_1 = require("./util.js");
+
 // Keep a global reference of the window object
 let mainWindow = null;
+
 const createWindow = () => {
     // Create the browser window
     mainWindow = new electron_1.BrowserWindow({
@@ -22,43 +24,54 @@ const createWindow = () => {
         show: false, // Don't show until ready-to-show
         titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     });
+
+    // Hide menu bar
+    mainWindow.setMenuBarVisibility(false);
+    mainWindow.setAutoHideMenuBar(true);
+
     // Load the app
     if (util_js_1.isDev) {
         mainWindow.loadURL('http://localhost:5173'); // Vite dev server
         // Open DevTools in development
-        mainWindow.webContents.openDevTools();
+        //mainWindow.webContents.openDevTools();
     }
     else {
         mainWindow.loadFile((0, path_1.join)(__dirname, '../../dist/index.html'));
     }
+
     // Show window when ready to prevent visual flash
     mainWindow.once('ready-to-show', () => {
         mainWindow?.show();
         // Focus on window creation
         if (util_js_1.isDev) {
-            mainWindow?.webContents.openDevTools();
+            //mainWindow?.webContents.openDevTools();
         }
     });
+
     // Handle window closed
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
+
     // Handle external links
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
         electron_1.shell.openExternal(url);
         return { action: 'deny' };
     });
+
     // Handle new-window event for older Electron versions compatibility
     mainWindow.webContents.on('new-window', (event, navigationUrl) => {
         event.preventDefault();
         electron_1.shell.openExternal(navigationUrl);
     });
 };
+
 // App event listeners
 electron_1.app.whenReady().then(() => {
     createWindow();
     // Set up the menu
     createMenu();
+
     // On macOS, re-create window when dock icon is clicked
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {
@@ -66,6 +79,7 @@ electron_1.app.whenReady().then(() => {
         }
     });
 });
+
 // Quit when all windows are closed
 electron_1.app.on('window-all-closed', () => {
     // On macOS, keep app running even when all windows are closed
@@ -73,6 +87,7 @@ electron_1.app.on('window-all-closed', () => {
         electron_1.app.quit();
     }
 });
+
 // Security: Prevent navigation to external websites
 electron_1.app.on('web-contents-created', (event, contents) => {
     contents.on('will-navigate', (navigationEvent, navigationUrl) => {
@@ -82,6 +97,7 @@ electron_1.app.on('web-contents-created', (event, contents) => {
         }
     });
 });
+
 // Create application menu
 const createMenu = () => {
     const template = [
@@ -166,6 +182,7 @@ const createMenu = () => {
             ]
         }
     ];
+
     // macOS specific menu adjustments
     if (process.platform === 'darwin') {
         template.unshift({
@@ -185,30 +202,37 @@ const createMenu = () => {
         // Window menu
         template[4].submenu.push({ type: 'separator' }, { role: 'front' });
     }
+
     const menu = electron_1.Menu.buildFromTemplate(template);
     electron_1.Menu.setApplicationMenu(menu);
 };
+
 // IPC handlers
 electron_1.ipcMain.handle('app-version', () => {
     return electron_1.app.getVersion();
 });
+
 electron_1.ipcMain.handle('show-message-box', async (event, options) => {
     const result = await electron_1.dialog.showMessageBox(mainWindow, options);
     return result;
 });
+
 electron_1.ipcMain.handle('show-save-dialog', async (event, options) => {
     const result = await electron_1.dialog.showSaveDialog(mainWindow, options);
     return result;
 });
+
 electron_1.ipcMain.handle('show-open-dialog', async (event, options) => {
     const result = await electron_1.dialog.showOpenDialog(mainWindow, options);
     return result;
 });
+
 // Handle app closing
 electron_1.app.on('before-quit', (event) => {
     // You can add cleanup logic here
     console.log('App is about to quit');
 });
+
 // Prevent multiple instances
 const gotTheLock = electron_1.app.requestSingleInstanceLock();
 if (!gotTheLock) {

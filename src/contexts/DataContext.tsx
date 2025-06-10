@@ -38,9 +38,13 @@ export interface Sale {
 
 interface DataContextType {
   subscribers: Subscriber[];
+  filteredSubscribers: Subscriber[];
   products: Product[];
   sales: Sale[];
+  filteredSales: Sale[];
   viewMode: 'cards' | 'list';
+  currentMonth: string;
+  setCurrentMonth: (month: string) => void;
   addSubscriber: (subscriber: Omit<Subscriber, 'id' | 'status' | 'attendance'>) => void;
   updateSubscriber: (id: string, updates: Partial<Subscriber>) => void;
   deleteSubscriber: (id: string) => void;
@@ -64,9 +68,12 @@ const isElectron = typeof window !== 'undefined' && window.require;
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { db, isReady, saveDatabase } = useDatabase();
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
+  const [filteredSubscribers, setFilteredSubscribers] = useState<Subscriber[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
+  const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [currentMonth, setCurrentMonth] = useState<string>(new Date().toISOString().slice(0, 7));
 
   const executeQuery = async (query: string, params: any[] = []): Promise<any> => {
     if (isElectron) {
@@ -107,6 +114,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           shower: Boolean(row[11])
         }));
         setSubscribers(mappedSubscribers.map(updateSubscriberStatus));
+        setFilteredSubscribers(filterDataByMonth(mappedSubscribers.map(updateSubscriberStatus), 'subscriptionDate'));
       }
 
       // Load products
@@ -137,6 +145,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           saleDate: row[7]
         }));
         setSales(mappedSales);
+        setFilteredSales(filterDataByMonth(mappedSales, 'saleDate'));
       }
 
       // Load view mode
@@ -158,6 +167,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     localStorage.setItem('gym_view_mode', JSON.stringify(viewMode));
   }, [viewMode]);
+
+  const filterDataByMonth = (data: any[], dateField: string) => {
+    return data.filter(item => {
+      const itemDate = new Date(item[dateField]);
+      return itemDate.toISOString().slice(0, 7) === currentMonth;
+    });
+  };
+
+  useEffect(() => {
+    if (subscribers.length > 0) {
+      setFilteredSubscribers(filterDataByMonth(subscribers, 'subscriptionDate'));
+    }
+    if (sales.length > 0) {
+      setFilteredSales(filterDataByMonth(sales, 'saleDate'));
+    }
+  }, [currentMonth, subscribers, sales]);
 
   const updateSubscriberStatus = (subscriber: Subscriber): Subscriber => {
     const today = new Date();
@@ -480,9 +505,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   return (
     <DataContext.Provider value={{
       subscribers,
+      filteredSubscribers,
       products,
       sales,
+      filteredSales,
       viewMode,
+      currentMonth,
+      setCurrentMonth,
       addSubscriber,
       updateSubscriber,
       deleteSubscriber,

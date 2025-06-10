@@ -1,26 +1,31 @@
+
 import React from 'react';
 import { useData } from '../contexts/DataContext';
 import { Users, DollarSign, AlertTriangle, Calendar, UserCheck, Package, TrendingUp } from 'lucide-react';
 
 export default function Statistics() {
-  const { subscribers, products, sales } = useData();
+  const { subscribers, filteredSubscribers, sales, filteredSales, products, currentMonth, setCurrentMonth } = useData();
+
+  const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentMonth(e.target.value);
+  };
 
   // Count only active and frozen subscribers (exclude expired)
-  const activeSubscribers = subscribers.filter(s => s.status === 'active').length;
-  const frozenSubscribers = subscribers.filter(s => s.status === 'frozen').length;
-  const expiredSubscribers = subscribers.filter(s => s.status === 'expired').length;
+  const activeSubscribers = filteredSubscribers.filter(s => s.status === 'active').length;
+  const frozenSubscribers = filteredSubscribers.filter(s => s.status === 'frozen').length;
+  const expiredSubscribers = filteredSubscribers.filter(s => s.status === 'expired').length;
   const totalActiveAndFrozen = activeSubscribers + frozenSubscribers;
   
-  const maleSubscribers = subscribers.filter(s => s.gender === 'male' && s.status !== 'expired').length;
-  const femaleSubscribers = subscribers.filter(s => s.gender === 'female' && s.status !== 'expired').length;
+  const maleSubscribers = filteredSubscribers.filter(s => s.gender === 'male' && s.status !== 'expired').length;
+  const femaleSubscribers = filteredSubscribers.filter(s => s.gender === 'female' && s.status !== 'expired').length;
 
   // Revenue from active and frozen subscriptions (both are paid)
-  const subscriptionRevenue = subscribers
+  const subscriptionRevenue = filteredSubscribers
     .filter(s => s.status === 'active' || s.status === 'frozen')
     .reduce((sum, s) => sum + s.price, 0);
 
   // Revenue from product sales (profit only)
-  const productSalesRevenue = sales.reduce((sum, sale) => sum + sale.profit, 0);
+  const productSalesRevenue = filteredSales.reduce((sum, sale) => sum + sale.profit, 0);
 
   // Total revenue (subscriptions + product profits)
   const totalRevenue = subscriptionRevenue + productSalesRevenue;
@@ -28,7 +33,7 @@ export default function Statistics() {
   // Inventory value (for display only, not included in revenue)
   const inventoryValue = products.reduce((sum, p) => sum + (p.purchasePrice * p.quantity), 0);
 
-  const expiringSoon = subscribers.filter(s => {
+  const expiringSoon = filteredSubscribers.filter(s => {
     if (s.status !== 'active') return false;
     const expiry = new Date(s.expiryDate);
     const today = new Date();
@@ -38,7 +43,7 @@ export default function Statistics() {
   }).length;
 
   // Calculate attendance only for active and frozen subscribers
-  const activeAndFrozenSubscribers = subscribers.filter(s => s.status !== 'expired');
+  const activeAndFrozenSubscribers = filteredSubscribers.filter(s => s.status !== 'expired');
   const totalAttendance = activeAndFrozenSubscribers.reduce((sum, s) => sum + s.attendance.length, 0);
   const avgAttendance = activeAndFrozenSubscribers.length > 0 ? (totalAttendance / activeAndFrozenSubscribers.length).toFixed(1) : '0';
 
@@ -103,7 +108,18 @@ export default function Statistics() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-white mb-6">الإحصائيات العامة</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-white">الإحصائيات العامة</h1>
+        <div className="flex items-center gap-4">
+          <label className="text-gray-300">اختر الشهر:</label>
+          <input
+            type="month"
+            value={currentMonth}
+            onChange={handleMonthChange}
+            className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600"
+          />
+        </div>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, index) => {
@@ -206,7 +222,7 @@ export default function Statistics() {
             </div>
             <div className="flex justify-between items-center p-3 bg-orange-900/20 rounded-lg">
               <span className="text-gray-300">عدد المبيعات</span>
-              <span className="font-bold text-orange-400">{sales.length}</span>
+              <span className="font-bold text-orange-400">{filteredSales.length}</span>
             </div>
           </div>
         </div>
@@ -229,7 +245,7 @@ export default function Statistics() {
           </div>
           <div className="text-center p-4 bg-red-900/20 rounded-lg">
             <div className="text-2xl font-bold text-red-400">
-              {subscribers.length > 0 ? ((expiredSubscribers / subscribers.length) * 100).toFixed(1) : '0'}%
+              {filteredSubscribers.length > 0 ? ((expiredSubscribers / filteredSubscribers.length) * 100).toFixed(1) : '0'}%
             </div>
             <div className="text-sm text-gray-400">معدل الانتهاء</div>
           </div>

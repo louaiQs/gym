@@ -25,7 +25,10 @@ import ConfirmDialog from './ConfirmDialog';
 
 export default function SubscribersList() {
   const { 
-    subscribers, 
+    subscribers,
+    filteredSubscribers,
+    currentMonth,
+    setCurrentMonth,
     deleteSubscriber, 
     freezeSubscriber, 
     unfreezeSubscriber, 
@@ -53,22 +56,23 @@ export default function SubscribersList() {
     type: 'warning'
   });
 
+  const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCurrentMonth(e.target.value);
+  };
+
   // Sort subscribers: active/frozen by expiry date (newest first), then expired at bottom
-  const sortedSubscribers = [...subscribers].sort((a, b) => {
-    // If both are expired, sort by expiry date (newest first)
+  const sortedSubscribers = [...filteredSubscribers].sort((a, b) => {
     if (a.status === 'expired' && b.status === 'expired') {
       return new Date(b.expiryDate).getTime() - new Date(a.expiryDate).getTime();
     }
     
-    // If one is expired and other is not, non-expired comes first
     if (a.status === 'expired' && b.status !== 'expired') return 1;
     if (a.status !== 'expired' && b.status === 'expired') return -1;
     
-    // For non-expired subscribers, sort by expiry date (newest first)
     return new Date(b.expiryDate).getTime() - new Date(a.expiryDate).getTime();
   });
 
-  const filteredSubscribers = sortedSubscribers.filter(subscriber => {
+  const filteredSubscribersList = sortedSubscribers.filter(subscriber => {
     const matchesSearch = subscriber.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (subscriber.phone && subscriber.phone.includes(searchTerm)) ||
                          subscriber.residence.toLowerCase().includes(searchTerm.toLowerCase());
@@ -79,8 +83,8 @@ export default function SubscribersList() {
     return matchesSearch && matchesStatus && matchesGender;
   });
 
-  const maleSubscribers = filteredSubscribers.filter(s => s.gender === 'male');
-  const femaleSubscribers = filteredSubscribers.filter(s => s.gender === 'female');
+  const maleSubscribers = filteredSubscribersList.filter(s => s.gender === 'male');
+  const femaleSubscribers = filteredSubscribersList.filter(s => s.gender === 'female');
 
   const handleDelete = (subscriber: Subscriber) => {
     setConfirmDialog({
@@ -416,29 +420,38 @@ export default function SubscribersList() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-white">قائمة المشتركين</h1>
         
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setViewMode('cards')}
-            className={`p-2 rounded-lg transition-colors ${
-              viewMode === 'cards' 
-                ? 'bg-blue-600 text-white' 
-                : 'text-gray-400 hover:bg-gray-700'
-            }`}
-            title="عرض البطاقات"
-          >
-            <Grid3X3 className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 rounded-lg transition-colors ${
-              viewMode === 'list' 
-                ? 'bg-blue-600 text-white' 
-                : 'text-gray-400 hover:bg-gray-700'
-            }`}
-            title="عرض القائمة"
-          >
-            <List className="w-5 h-5" />
-          </button>
+        <div className="flex items-center gap-4">
+          <label className="text-gray-300">اختر الشهر:</label>
+          <input
+            type="month"
+            value={currentMonth}
+            onChange={handleMonthChange}
+            className="bg-gray-700 text-white px-3 py-2 rounded border border-gray-600"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'cards' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-400 hover:bg-gray-700'
+              }`}
+              title="عرض البطاقات"
+            >
+              <Grid3X3 className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-lg transition-colors ${
+                viewMode === 'list' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'text-gray-400 hover:bg-gray-700'
+              }`}
+              title="عرض القائمة"
+            >
+              <List className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -482,14 +495,14 @@ export default function SubscribersList() {
         </div>
       </div>
 
-      {filteredSubscribers.length === 0 ? (
+      {filteredSubscribersList.length === 0 ? (
         <div className="bg-gray-800 rounded-lg shadow-md p-8 text-center">
           <UserX className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-white mb-2">لا توجد نتائج</h2>
           <p className="text-gray-400">
             {searchTerm || statusFilter !== 'all' || genderFilter !== 'all'
               ? 'لم يتم العثور على مشتركين يطابقون البحث'
-              : 'لا يوجد مشتركين مسجلين بعد'
+              : 'لا يوجد مشتركين مسجلين لهذا الشهر'
             }
           </p>
         </div>
