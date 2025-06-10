@@ -72,7 +72,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('list');
   const [currentMonth, setCurrentMonth] = useState<string>(new Date().toISOString().slice(0, 7));
 
   const executeQuery = async (query: string, params: any[] = []): Promise<any> => {

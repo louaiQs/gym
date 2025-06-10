@@ -8,7 +8,8 @@ import {
   Bell, 
   LogOut,
   User,
-  Database
+  Database,
+  Car
 } from 'lucide-react';
 
 interface SidebarProps {

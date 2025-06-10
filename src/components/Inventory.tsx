@@ -306,7 +306,7 @@ export default function Inventory() {
               <div className="space-y-2 text-sm text-gray-400 mb-4">
                 <div className="flex justify-between">
                   <span>الكمية:</span>
-                  <span className={`font-medium ${product.quantity < 10 ? 'text-red-400' : 'text-green-400'}`}>
+                  <span className={`font-medium ${product.quantity < 5 ? 'text-red-400' : 'text-green-400'}`}>
                     {product.quantity}
                   </span>
                 </div>
@@ -353,7 +353,7 @@ export default function Inventory() {
                 </div>
               )}
 
-              {product.quantity < 10 && (
+              {product.quantity < 5 && (
                 <div className="mt-4 px-3 py-2 bg-red-900/20 border border-red-800 rounded-lg">
                   <p className="text-sm text-red-400 font-medium">كمية منخفضة في المخزون</p>
                 </div>

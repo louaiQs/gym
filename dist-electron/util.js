@@ -71,7 +71,7 @@ const formatFileSize = (bytes) => {
 exports.formatFileSize = formatFileSize;
 // Date utilities
 const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('ar-DZ', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -79,7 +79,7 @@ const formatDate = (date) => {
 };
 exports.formatDate = formatDate;
 const formatDateTime = (date) => {
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('ar-DZ', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',

@@ -126,7 +126,7 @@ export default function Notifications() {
                   <h3 className="font-semibold text-white">{notification.title}</h3>
                   <p className="text-gray-300 mt-1">{notification.message}</p>
                   <p className="text-sm text-gray-400 mt-2">
-                    تاريخ الانتهاء: {new Date(notification.date).toLocaleDateString('ar-EG')}
+                    تاريخ الانتهاء: {new Date(notification.date).toLocaleDateString('ar-DZ')}
                   </p>
                   {notification.subscriber.phone && (
                     <p className="text-sm text-gray-400">

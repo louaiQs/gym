@@ -49,7 +49,7 @@ export default function Statistics() {
 
   const stats = [
     {
-      title: 'المشتركين النشطين والمجمدين',
+      title: 'إجمالي المشتركين',
       value: totalActiveAndFrozen,
       icon: Users,
       color: 'bg-blue-500',

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
 import { User, Phone, MapPin, DollarSign, Calendar, FileText, Droplets } from 'lucide-react';
+import ConfirmDialog from './ConfirmDialog';
 
 interface AddSubscriberProps {
   onSuccess: () => void;
@@ -20,17 +21,17 @@ export default function AddSubscriber({ onSuccess }: AddSubscriberProps) {
     shower: false
   });
   const [error, setError] = useState('');
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(''); // Reset error message
+    setError('');
     
     if (!formData.name.trim()) {
       setError('الاسم مطلوب');
       return;
     }
 
-    // Check for existing subscriber with the same name (case insensitive)
     const subscriberExists = subscribers.some(
       sub => sub.name.toLowerCase() === formData.name.trim().toLowerCase()
     );
@@ -42,12 +43,16 @@ export default function AddSubscriber({ onSuccess }: AddSubscriberProps) {
 
     try {
       await addSubscriber(formData);
-      alert('تم إضافة المشترك بنجاح');
-      onSuccess();
+      setShowSuccessDialog(true);
     } catch (err) {
       setError('حدث خطأ أثناء إضافة المشترك');
       console.error('Error adding subscriber:', err);
     }
+  };
+
+  const handleSuccessConfirm = () => {
+    setShowSuccessDialog(false);
+    onSuccess();
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -67,7 +72,6 @@ export default function AddSubscriber({ onSuccess }: AddSubscriberProps) {
       }));
     }
 
-    // Clear error when user starts typing in name field
     if (name === 'name') {
       setError('');
     }
@@ -239,6 +243,15 @@ export default function AddSubscriber({ onSuccess }: AddSubscriberProps) {
           </button>
         </div>
       </form>
+
+      <ConfirmDialog
+        isOpen={showSuccessDialog}
+        title="تمت العملية بنجاح"
+        message="تم إضافة المشترك بنجاح"
+        onConfirm={handleSuccessConfirm}
+        onCancel={handleSuccessConfirm}
+        type="success"
+      />
     </div>
   );
 }

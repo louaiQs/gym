@@ -288,7 +288,7 @@ export default function SubscribersList() {
         
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4" />
-          <span>ينتهي: {new Date(subscriber.expiryDate).toLocaleDateString('ar-EG')}</span>
+          <span>ينتهي: {new Date(subscriber.expiryDate).toLocaleDateString('ar-DZ')}</span>
         </div>
         
         <div className="flex items-center gap-2">
@@ -341,7 +341,7 @@ export default function SubscribersList() {
             </span>
             <span className="flex items-center gap-1">
               <Calendar className="w-3 h-3" />
-              {new Date(subscriber.expiryDate).toLocaleDateString('ar-EG')}
+              {new Date(subscriber.expiryDate).toLocaleDateString('ar-DZ')}
             </span>
             <span className={`flex items-center gap-1 ${subscriber.status === 'expired' ? 'text-red-400' : ''}`}>
               <Clock className="w-3 h-3" />

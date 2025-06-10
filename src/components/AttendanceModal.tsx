@@ -70,7 +70,7 @@ export default function AttendanceModal({ subscriber, onClose }: AttendanceModal
                     <div className="flex items-center gap-3">
                       <Check className={`w-5 h-5 ${isToday ? 'text-green-400' : 'text-green-400'}`} />
                       <span className="text-white">
-                        {date.toLocaleDateString('ar-EG', {
+                        {date.toLocaleDateString('ar-DZ', {
                           weekday: 'long',
                           year: 'numeric',
                           month: 'long',

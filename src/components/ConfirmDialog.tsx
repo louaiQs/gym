@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import FadeContent from './FadeContent'; // تأكد من المسار الصحيح
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   type?: 'warning' | 'success' | 'info';
+  fadeDuration?: number;
 }
 
 export default function ConfirmDialog({ 
@@ -16,7 +18,8 @@ export default function ConfirmDialog({
   message, 
   onConfirm, 
   onCancel,
-  type = 'warning'
+  type = 'warning',
+  fadeDuration = 300
 }: ConfirmDialogProps) {
   if (!isOpen) return null;
 
@@ -44,41 +47,48 @@ export default function ConfirmDialog({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
-        <div className="flex justify-between items-center p-6 border-b border-gray-700">
-          <div className="flex items-center gap-3">
-            {getIcon()}
-            <h2 className="text-xl font-bold text-white">{title}</h2>
-          </div>
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-300"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <div className="p-6">
-          <p className="text-gray-300 mb-6">{message}</p>
-          
-          <div className="flex gap-4">
+      <FadeContent 
+        duration={fadeDuration} 
+        easing="ease-out" 
+        initialOpacity={0}
+        className="max-w-md w-full"
+      >
+        <div className="bg-gray-800 rounded-lg shadow-xl">
+          <div className="flex justify-between items-center p-6 border-b border-gray-700">
+            <div className="flex items-center gap-3">
+              {getIcon()}
+              <h2 className="text-xl font-bold text-white">{title}</h2>
+            </div>
             <button
-              onClick={onConfirm}
-              className={`flex-1 ${getButtonColor()} text-white font-semibold py-3 px-6 rounded-lg transition duration-200`}
+              onClick={onCancel}
+              className="text-gray-400 hover:text-gray-300"
             >
-              {type === 'success' || type === 'info' ? 'موافق' : 'تأكيد'}
+              <X className="w-6 h-6" />
             </button>
-            {type === 'warning' && (
+          </div>
+
+          <div className="p-6">
+            <p className="text-gray-300 mb-6">{message}</p>
+            
+            <div className="flex gap-4">
               <button
-                onClick={onCancel}
-                className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition duration-200"
+                onClick={onConfirm}
+                className={`flex-1 ${getButtonColor()} text-white font-semibold py-3 px-6 rounded-lg transition duration-200`}
               >
-                إلغاء
+                {type === 'success' || type === 'info' ? 'موافق' : 'تأكيد'}
               </button>
-            )}
+              {type === 'warning' && (
+                <button
+                  onClick={onCancel}
+                  className="px-6 py-3 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition duration-200"
+                >
+                  إلغاء
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </FadeContent>
     </div>
   );
 }
