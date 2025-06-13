@@ -5,15 +5,29 @@ export interface Subscriber {
   id: string;
   name: string;
   gender: 'male' | 'female';
+  age?: number;
+  height?: number;
+  weight?: number;
+  bmi?: number;
+  bodyType?: string;
+  fitnessGoal?: 'bulking' | 'cutting' | 'custom';
+  customGoal?: string;
   phone?: string;
   subscriptionDate: string;
   expiryDate: string;
   residence: string;
   price: number;
+  debt: number;
+  subscriptionDuration: number;
   notes?: string;
   status: 'active' | 'expired' | 'frozen';
-  attendance: string[];
+  attendance: AttendanceRecord[];
   shower: boolean;
+}
+
+export interface AttendanceRecord {
+  date: string;
+  trainingTypes: string[];
 }
 
 export interface Product {
@@ -36,34 +50,62 @@ export interface Sale {
   saleDate: string;
 }
 
+export interface Expense {
+  id: string;
+  name: string;
+  amount: number;
+  category: 'rent' | 'equipment' | 'salary' | 'utilities' | 'maintenance' | 'other';
+  description?: string;
+  date: string;
+}
+
+export interface IndividualClass {
+  id: string;
+  name: string;
+  age?: number;
+  date: string;
+  price: number;
+}
+
 interface DataContextType {
   subscribers: Subscriber[];
   filteredSubscribers: Subscriber[];
   products: Product[];
   sales: Sale[];
   filteredSales: Sale[];
+  expenses: Expense[];
+  filteredExpenses: Expense[];
+  individualClasses: IndividualClass[];
+  filteredIndividualClasses: IndividualClass[];
   viewMode: 'cards' | 'list';
   currentMonth: string;
   setCurrentMonth: (month: string) => void;
-  addSubscriber: (subscriber: Omit<Subscriber, 'id' | 'status' | 'attendance'>) => void;
+  addSubscriber: (subscriber: Omit<Subscriber, 'id' | 'status' | 'attendance'>) => Promise<void>;
   updateSubscriber: (id: string, updates: Partial<Subscriber>) => void;
   deleteSubscriber: (id: string) => void;
   freezeSubscriber: (id: string) => void;
   unfreezeSubscriber: (id: string) => void;
-  recordAttendance: (id: string) => boolean;
-  removeAttendance: (id: string, dateString: string) => boolean;
+  recordAttendance: (id: string, trainingTypes: string[]) => Promise<boolean>; 
+  removeAttendance: (id: string, dateString: string) => Promise<boolean>;   
   addProduct: (product: Omit<Product, 'id'>) => void;
   updateProduct: (id: string, updates: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
-  sellProduct: (id: string, quantity: number) => boolean;
+  sellProduct: (id: string, quantity: number) => Promise<boolean>;      
+  addExpense: (expense: Omit<Expense, 'id'>) => void;
+  updateExpense: (id: string, updates: Partial<Expense>) => void;
+  deleteExpense: (id: string) => void;
+  addIndividualClass: (individualClass: Omit<IndividualClass, 'id'>) => void;
+  updateIndividualClass: (id: string, updates: Partial<IndividualClass>) => void;
+  deleteIndividualClass: (id: string) => void;
   setViewMode: (mode: 'cards' | 'list') => void;
   loadData: () => void;
+  searchSubscribers: (term: string) => Subscriber[];
+  calculateBMI: (height: number, weight: number) => { bmi: number; bodyType: string };
+  getDefaultFitnessGoal: (bmi: number) => 'bulking' | 'cutting';
+  checkExistingSubscriber: (name: string) => { exists: boolean; subscriber?: Subscriber };
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
-
-// Check if we're running in Electron
-const isElectron = typeof window !== 'undefined' && window.require;
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
   const { db, isReady, saveDatabase } = useDatabase();
@@ -72,53 +114,171 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
+  const [individualClasses, setIndividualClasses] = useState<IndividualClass[]>([]);
+  const [filteredIndividualClasses, setFilteredIndividualClasses] = useState<IndividualClass[]>([]);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('list');
   const [currentMonth, setCurrentMonth] = useState<string>(new Date().toISOString().slice(0, 7));
 
-  const executeQuery = async (query: string, params: any[] = []): Promise<any> => {
-    if (isElectron) {
-      const { ipcRenderer } = window.require('electron');
-      return await ipcRenderer.invoke('execute-query', query, params);
-    } else if (db && db.exec) {
-      // Browser fallback
+  const executeQuery = (query: string, params: any[] = []): any => {
+    if (!db || !isReady) return null;
+
+    try {
       if (query.startsWith('SELECT')) {
-        const result = db.exec(query);
+        const result = db.exec(query, params);
         return result.length > 0 ? result[0].values : [];
       } else {
         db.run(query, params);
+        saveDatabase(); // تأكد من حفظ التغييرات
         return true;
       }
+    } catch (error) {
+      console.error('Query error:', error);
+      return null;
     }
-    return null;
+  };
+
+  const calculateBMI = (height: number, weight: number): { bmi: number; bodyType: string } => {
+    const heightInMeters = height / 100;
+    const bmi = weight / (heightInMeters * heightInMeters);
+    
+    let bodyType = '';
+    if (bmi < 18.5) bodyType = 'نحيف';
+    else if (bmi < 25) bodyType = 'طبيعي';
+    else if (bmi < 30) bodyType = 'زيادة وزن';
+    else bodyType = 'سمنة';
+    
+    return { bmi: Math.round(bmi * 10) / 10, bodyType };
+  };
+
+  const getDefaultFitnessGoal = (bmi: number): 'bulking' | 'cutting' => {
+    return bmi < 18.5 ? 'bulking' : 'cutting';
+  };
+
+  const checkExistingSubscriber = (name: string): { exists: boolean; subscriber?: Subscriber } => {
+    const existing = subscribers.find(sub => sub.name.toLowerCase() === name.toLowerCase());
+    return { exists: !!existing, subscriber: existing };
+  };
+
+  const searchSubscribers = (term: string): Subscriber[] => {
+    if (!term.trim()) return [];
+    
+    return subscribers.filter(subscriber => 
+      subscriber.status === 'active' && (
+        subscriber.name.toLowerCase().includes(term.toLowerCase()) ||
+        (subscriber.phone && subscriber.phone.includes(term)) ||
+        subscriber.residence.toLowerCase().includes(term.toLowerCase())
+      )
+    );
   };
 
   const loadData = async () => {
     if (!db || !isReady) return;
 
     try {
+      // تأكد من وجود الجداول أولاً
+      const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
+      if (!tables || tables.length === 0 || tables[0].values.length === 0) {
+        // إذا لم تكن هناك جداول، قم بإنشائها
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS subscribers (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            gender TEXT NOT NULL DEFAULT 'male',
+            age INTEGER,
+            height REAL,
+            weight REAL,
+            bmi REAL,
+            body_type TEXT,
+            fitness_goal TEXT,
+            custom_goal TEXT,
+            phone TEXT,
+            subscription_date TEXT NOT NULL,
+            expiry_date TEXT NOT NULL,
+            residence TEXT NOT NULL,
+            price REAL NOT NULL,
+            debt REAL DEFAULT 0,
+            subscription_duration INTEGER DEFAULT 30,
+            notes TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            attendance TEXT DEFAULT '[]',
+            shower INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS products (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            purchase_price REAL NOT NULL,
+            selling_price REAL NOT NULL,
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS sales (
+            id TEXT PRIMARY KEY,
+            product_id TEXT NOT NULL,
+            product_name TEXT NOT NULL,
+            quantity_sold INTEGER NOT NULL,
+            purchase_price REAL NOT NULL,
+            selling_price REAL NOT NULL,
+            profit REAL NOT NULL,
+            sale_date TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS expenses (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            amount REAL NOT NULL,
+            category TEXT NOT NULL,
+            description TEXT,
+            date TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS individual_classes (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            age INTEGER,
+            date TEXT NOT NULL,
+            price REAL NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+        `);
+      }
+
+      // الآن يمكنك تحميل البيانات بأمان
       // Load subscribers
-      const subscribersData = await executeQuery("SELECT * FROM subscribers ORDER BY created_at DESC");
+      const subscribersData = executeQuery("SELECT * FROM subscribers ORDER BY created_at DESC");
       if (subscribersData && subscribersData.length > 0) {
         const mappedSubscribers = subscribersData.map((row: any) => ({
           id: row[0],
           name: row[1],
           gender: row[2],
-          phone: row[3],
-          subscriptionDate: row[4],
-          expiryDate: row[5],
-          residence: row[6],
-          price: row[7],
-          notes: row[8],
-          status: row[9],
-          attendance: JSON.parse(row[10] || '[]'),
-          shower: Boolean(row[11])
+          age: row[3],
+          height: row[4],
+          weight: row[5],
+          bmi: row[6],
+          bodyType: row[7],
+          fitnessGoal: row[8],
+          customGoal: row[9],
+          phone: row[10],
+          subscriptionDate: row[11],
+          expiryDate: row[12],
+          residence: row[13],
+          price: row[14],
+          debt: row[15] || 0,
+          subscriptionDuration: row[16] || 30,
+          notes: row[17],
+          status: row[18],
+          attendance: JSON.parse(row[19] || '[]'),
+          shower: Boolean(row[20])
         }));
         setSubscribers(mappedSubscribers.map(updateSubscriberStatus));
         setFilteredSubscribers(filterDataByMonth(mappedSubscribers.map(updateSubscriberStatus), 'subscriptionDate'));
       }
 
       // Load products
-      const productsData = await executeQuery("SELECT * FROM products ORDER BY created_at DESC");
+      const productsData = executeQuery("SELECT * FROM products ORDER BY created_at DESC");
       if (productsData && productsData.length > 0) {
         const mappedProducts = productsData.map((row: any) => ({
           id: row[0],
@@ -132,7 +292,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Load sales
-      const salesData = await executeQuery("SELECT * FROM sales ORDER BY sale_date DESC");
+      const salesData = executeQuery("SELECT * FROM sales ORDER BY sale_date DESC");
       if (salesData && salesData.length > 0) {
         const mappedSales = salesData.map((row: any) => ({
           id: row[0],
@@ -146,6 +306,35 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }));
         setSales(mappedSales);
         setFilteredSales(filterDataByMonth(mappedSales, 'saleDate'));
+      }
+
+      // Load expenses
+      const expensesData = executeQuery("SELECT * FROM expenses ORDER BY date DESC");
+      if (expensesData && expensesData.length > 0) {
+        const mappedExpenses = expensesData.map((row: any) => ({
+          id: row[0],
+          name: row[1],
+          amount: row[2],
+          category: row[3],
+          description: row[4],
+          date: row[5]
+        }));
+        setExpenses(mappedExpenses);
+        setFilteredExpenses(filterDataByMonth(mappedExpenses, 'date'));
+      }
+
+      // Load individual classes
+      const classesData = executeQuery("SELECT * FROM individual_classes ORDER BY date DESC");
+      if (classesData && classesData.length > 0) {
+        const mappedClasses = classesData.map((row: any) => ({
+          id: row[0],
+          name: row[1],
+          age: row[2],
+          date: row[3],
+          price: row[4]
+        }));
+        setIndividualClasses(mappedClasses);
+        setFilteredIndividualClasses(filterDataByMonth(mappedClasses, 'date'));
       }
 
       // Load view mode
@@ -182,7 +371,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (sales.length > 0) {
       setFilteredSales(filterDataByMonth(sales, 'saleDate'));
     }
-  }, [currentMonth, subscribers, sales]);
+    if (expenses.length > 0) {
+      setFilteredExpenses(filterDataByMonth(expenses, 'date'));
+    }
+    if (individualClasses.length > 0) {
+      setFilteredIndividualClasses(filterDataByMonth(individualClasses, 'date'));
+    }
+  }, [currentMonth, subscribers, sales, expenses, individualClasses]);
 
   const updateSubscriberStatus = (subscriber: Subscriber): Subscriber => {
     const today = new Date();
@@ -210,18 +405,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const updatedSubscriber = updateSubscriberStatus(newSubscriber);
     
     try {
-      await executeQuery(`
-        INSERT INTO subscribers (id, name, gender, phone, subscription_date, expiry_date, residence, price, notes, status, attendance, shower)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      executeQuery(`
+        INSERT INTO subscribers (id, name, gender, age, height, weight, bmi, body_type, fitness_goal, custom_goal, phone, subscription_date, expiry_date, residence, price, debt, subscription_duration, notes, status, attendance, shower)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         id,
         updatedSubscriber.name,
         updatedSubscriber.gender,
+        updatedSubscriber.age || null,
+        updatedSubscriber.height || null,
+        updatedSubscriber.weight || null,
+        updatedSubscriber.bmi || null,
+        updatedSubscriber.bodyType || null,
+        updatedSubscriber.fitnessGoal || null,
+        updatedSubscriber.customGoal || null,
         updatedSubscriber.phone || null,
         updatedSubscriber.subscriptionDate,
         updatedSubscriber.expiryDate,
         updatedSubscriber.residence,
         updatedSubscriber.price,
+        updatedSubscriber.debt,
+        updatedSubscriber.subscriptionDuration,
         updatedSubscriber.notes || null,
         updatedSubscriber.status,
         JSON.stringify(updatedSubscriber.attendance),
@@ -232,6 +436,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       saveDatabase();
     } catch (error) {
       console.error('Error adding subscriber:', error);
+      throw error;
     }
   };
 
@@ -245,19 +450,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const updatedSubscriber = updateSubscriberStatus(updated);
 
     try {
-      await executeQuery(`
+      executeQuery(`
         UPDATE subscribers SET 
-        name = ?, gender = ?, phone = ?, subscription_date = ?, expiry_date = ?, 
-        residence = ?, price = ?, notes = ?, status = ?, attendance = ?, shower = ?
+        name = ?, gender = ?, age = ?, height = ?, weight = ?, bmi = ?, body_type = ?, fitness_goal = ?, custom_goal = ?, phone = ?, subscription_date = ?, expiry_date = ?, 
+        residence = ?, price = ?, debt = ?, subscription_duration = ?, notes = ?, status = ?, attendance = ?, shower = ?
         WHERE id = ?
       `, [
         updatedSubscriber.name,
         updatedSubscriber.gender,
+        updatedSubscriber.age || null,
+        updatedSubscriber.height || null,
+        updatedSubscriber.weight || null,
+        updatedSubscriber.bmi || null,
+        updatedSubscriber.bodyType || null,
+        updatedSubscriber.fitnessGoal || null,
+        updatedSubscriber.customGoal || null,
         updatedSubscriber.phone || null,
         updatedSubscriber.subscriptionDate,
         updatedSubscriber.expiryDate,
         updatedSubscriber.residence,
         updatedSubscriber.price,
+        updatedSubscriber.debt,
+        updatedSubscriber.subscriptionDuration,
         updatedSubscriber.notes || null,
         updatedSubscriber.status,
         JSON.stringify(updatedSubscriber.attendance),
@@ -276,7 +490,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!db) return;
 
     try {
-      await executeQuery("DELETE FROM subscribers WHERE id = ?", [id]);
+      executeQuery("DELETE FROM subscribers WHERE id = ?", [id]);
       setSubscribers(prev => prev.filter(sub => sub.id !== id));
       saveDatabase();
     } catch (error) {
@@ -288,7 +502,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!db) return;
 
     try {
-      await executeQuery("UPDATE subscribers SET status = 'frozen' WHERE id = ?", [id]);
+      executeQuery("UPDATE subscribers SET status = 'frozen' WHERE id = ?", [id]);
       setSubscribers(prev => prev.map(sub => 
         sub.id === id ? { ...sub, status: 'frozen' } : sub
       ));
@@ -307,7 +521,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const updatedSubscriber = updateSubscriberStatus({ ...subscriber, status: 'active' });
 
     try {
-      await executeQuery("UPDATE subscribers SET status = ? WHERE id = ?", [updatedSubscriber.status, id]);
+      executeQuery("UPDATE subscribers SET status = ? WHERE id = ?", [updatedSubscriber.status, id]);
       setSubscribers(prev => prev.map(sub => sub.id === id ? updatedSubscriber : sub));
       saveDatabase();
     } catch (error) {
@@ -315,7 +529,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const recordAttendance = async (id: string): Promise<boolean> => {
+  const recordAttendance = async (id: string, trainingTypes: string[]): Promise<boolean> => {
     if (!db) return false;
 
     const today = new Date().toDateString();
@@ -323,14 +537,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     
     if (!subscriber) return false;
     
-    if (subscriber.attendance.includes(today)) {
+    const existingAttendance = subscriber.attendance.find(record => record.date === today);
+    if (existingAttendance) {
       return false; // Already recorded today
     }
     
-    const newAttendance = [...subscriber.attendance, today];
+    const newAttendanceRecord: AttendanceRecord = {
+      date: today,
+      trainingTypes
+    };
+    
+    const newAttendance = [...subscriber.attendance, newAttendanceRecord];
 
     try {
-      await executeQuery("UPDATE subscribers SET attendance = ? WHERE id = ?", [JSON.stringify(newAttendance), id]);
+      executeQuery("UPDATE subscribers SET attendance = ? WHERE id = ?", [JSON.stringify(newAttendance), id]);
       setSubscribers(prev => prev.map(sub => 
         sub.id === id 
           ? { ...sub, attendance: newAttendance }
@@ -350,10 +570,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const subscriber = subscribers.find(sub => sub.id === id);
     if (!subscriber) return false;
 
-    const newAttendance = subscriber.attendance.filter(date => date !== dateString);
+    const newAttendance = subscriber.attendance.filter(record => record.date !== dateString);
 
     try {
-      await executeQuery("UPDATE subscribers SET attendance = ? WHERE id = ?", [JSON.stringify(newAttendance), id]);
+      executeQuery("UPDATE subscribers SET attendance = ? WHERE id = ?", [JSON.stringify(newAttendance), id]);
       setSubscribers(prev => prev.map(sub => 
         sub.id === id 
           ? { ...sub, attendance: newAttendance }
@@ -377,7 +597,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     };
 
     try {
-      await executeQuery(`
+      executeQuery(`
         INSERT INTO products (id, name, quantity, purchase_price, selling_price, description)
         VALUES (?, ?, ?, ?, ?, ?)
       `, [
@@ -405,7 +625,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const updated = { ...product, ...updates };
 
     try {
-      await executeQuery(`
+      executeQuery(`
         UPDATE products SET 
         name = ?, quantity = ?, purchase_price = ?, selling_price = ?, description = ?
         WHERE id = ?
@@ -429,7 +649,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!db) return;
 
     try {
-      await executeQuery("DELETE FROM products WHERE id = ?", [id]);
+      executeQuery("DELETE FROM products WHERE id = ?", [id]);
       setProducts(prev => prev.filter(product => product.id !== id));
       saveDatabase();
     } catch (error) {
@@ -449,12 +669,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // Update product quantity
-      await executeQuery("UPDATE products SET quantity = ? WHERE id = ?", [newQuantity, id]);
+      executeQuery("UPDATE products SET quantity = ? WHERE id = ?", [newQuantity, id]);
       
       // Record sale
-      await executeQuery(`
-        INSERT INTO sales (id, product_id, product_name, quantity_sold, purchase_price, selling_price, profit)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+      executeQuery(`
+        INSERT INTO sales (id, product_id, product_name, quantity_sold, purchase_price, selling_price, profit, sale_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         saleId,
         id,
@@ -462,7 +682,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         quantity,
         product.purchasePrice,
         product.sellingPrice,
-        profit
+        profit,
+        new Date().toISOString()
       ]);
 
       // Update state
@@ -488,6 +709,144 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addExpense = async (expenseData: Omit<Expense, 'id'>) => {
+    if (!db) return;
+
+    const id = Date.now().toString();
+    const newExpense: Expense = {
+      ...expenseData,
+      id
+    };
+
+    try {
+      executeQuery(`
+        INSERT INTO expenses (id, name, amount, category, description, date)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [
+        id,
+        newExpense.name,
+        newExpense.amount,
+        newExpense.category,
+        newExpense.description || null,
+        newExpense.date
+      ]);
+      
+      setExpenses(prev => [newExpense, ...prev]);
+      saveDatabase();
+    } catch (error) {
+      console.error('Error adding expense:', error);
+    }
+  };
+
+  const updateExpense = async (id: string, updates: Partial<Expense>) => {
+    if (!db) return;
+
+    const expense = expenses.find(e => e.id === id);
+    if (!expense) return;
+
+    const updated = { ...expense, ...updates };
+
+    try {
+      executeQuery(`
+        UPDATE expenses SET 
+        name = ?, amount = ?, category = ?, description = ?, date = ?
+        WHERE id = ?
+      `, [
+        updated.name,
+        updated.amount,
+        updated.category,
+        updated.description || null,
+        updated.date,
+        id
+      ]);
+
+      setExpenses(prev => prev.map(expense => expense.id === id ? updated : expense));
+      saveDatabase();
+    } catch (error) {
+      console.error('Error updating expense:', error);
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    if (!db) return;
+
+    try {
+      executeQuery("DELETE FROM expenses WHERE id = ?", [id]);
+      setExpenses(prev => prev.filter(expense => expense.id !== id));
+      saveDatabase();
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+    }
+  };
+
+  const addIndividualClass = async (classData: Omit<IndividualClass, 'id'>) => {
+    if (!db) return;
+
+    const id = Date.now().toString();
+    const newClass: IndividualClass = {
+      ...classData,
+      id
+    };
+
+    try {
+      executeQuery(`
+        INSERT INTO individual_classes (id, name, age, date, price)
+        VALUES (?, ?, ?, ?, ?)
+      `, [
+        id,
+        newClass.name,
+        newClass.age || null,
+        newClass.date,
+        newClass.price
+      ]);
+      
+      setIndividualClasses(prev => [newClass, ...prev]);
+      saveDatabase();
+    } catch (error) {
+      console.error('Error adding individual class:', error);
+    }
+  };
+
+  const updateIndividualClass = async (id: string, updates: Partial<IndividualClass>) => {
+    if (!db) return;
+
+    const individualClass = individualClasses.find(c => c.id === id);
+    if (!individualClass) return;
+
+    const updated = { ...individualClass, ...updates };
+
+    try {
+      executeQuery(`
+        UPDATE individual_classes SET 
+        name = ?, age = ?, date = ?, price = ?
+        WHERE id = ?
+      `, [
+        updated.name,
+        updated.age || null,
+        updated.date,
+        updated.price,
+        id
+      ]);
+
+      setIndividualClasses(prev => prev.map(c => c.id === id ? updated : c));
+      saveDatabase();
+    } catch (error) {
+      console.error('Error updating individual class:', error);
+    }
+  };
+
+  const deleteIndividualClass = async (id: string) => {
+    if (!db) return;
+
+    try {
+      executeQuery("DELETE FROM individual_classes WHERE id = ?", [id]);
+      setIndividualClasses(prev => prev.filter(c => c.id !== id));
+      saveDatabase();
+    } catch (error) {
+      console.error('Error deleting individual class:', error);
+    }
+  };
+
   // Update subscriber statuses periodically
   useEffect(() => {
     if (!isReady) return;
@@ -509,6 +868,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       products,
       sales,
       filteredSales,
+      expenses,
+      filteredExpenses,
+      individualClasses,
+      filteredIndividualClasses,
       viewMode,
       currentMonth,
       setCurrentMonth,
@@ -523,8 +886,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       updateProduct,
       deleteProduct,
       sellProduct,
+      addExpense,
+      updateExpense,
+      deleteExpense,
+      addIndividualClass,
+      updateIndividualClass,
+      deleteIndividualClass,
       setViewMode,
-      loadData
+      loadData,
+      searchSubscribers,
+      calculateBMI,
+      getDefaultFitnessGoal,
+      checkExistingSubscriber
     }}>
       {children}
     </DataContext.Provider>

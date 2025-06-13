@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -13,20 +13,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<string | null>(null);
 
-  useEffect(() => {
-    const savedAuth = localStorage.getItem('gym_auth');
-    if (savedAuth) {
-      const authData = JSON.parse(savedAuth);
-      setIsAuthenticated(true);
-      setUser(authData.user);
-    }
-  }, []);
-
   const login = (username: string, password: string): boolean => {
     if (username === 'gym' && password === '1999') {
       setIsAuthenticated(true);
       setUser('gym');
-      localStorage.setItem('gym_auth', JSON.stringify({ user: 'gym' }));
       return true;
     }
     return false;
@@ -35,7 +25,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     setIsAuthenticated(false);
     setUser(null);
-    localStorage.removeItem('gym_auth');
   };
 
   return (

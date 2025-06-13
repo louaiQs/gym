@@ -36,7 +36,7 @@ export default function LoginPage() {
           <div className="bg-blue-900 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="w-10 h-10 text-blue-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Gym Management</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">إدارة Steel House</h1>
           <p className="text-gray-400">تسجيل الدخول للوصول إلى لوحة التحكم</p>
         </div>
 
