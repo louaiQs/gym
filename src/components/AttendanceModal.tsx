@@ -38,7 +38,7 @@ export default function AttendanceModal({ subscriber, onClose }: AttendanceModal
 
   const getTrainingTypeIcon = (type: string) => {
     const icons: { [key: string]: string } = {
-      'chest': '💪',
+      'chest': '🏋️',
       'back': '🏋️',
       'shoulders': '🤸',
       'triceps': '💪',

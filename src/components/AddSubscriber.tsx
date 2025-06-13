@@ -51,7 +51,7 @@ export default function AddSubscriber({ onSuccess, renewSubscriber }: AddSubscri
   useEffect(() => {
     if (formData.subscriptionDate && formData.subscriptionDuration) {
       const startDate = new Date(formData.subscriptionDate);
-      const expiryDate = new Date(startDate.getTime() + formData.subscriptionDuration * 24 * 60 * 60 * 1000);
+      const expiryDate = new Date(startDate.getTime() + Number(formData.subscriptionDuration) * 24 * 60 * 60 * 1000);
       setFormData(prev => ({
         ...prev,
         expiryDate: expiryDate.toISOString().split('T')[0]
@@ -73,24 +73,6 @@ export default function AddSubscriber({ onSuccess, renewSubscriber }: AddSubscri
       }));
     }
   }, [formData.height, formData.weight]);
-
-  // Update price based on subscription duration and shower
-  useEffect(() => {
-    let basePrice = 1500;
-  
-    // Custom pricing for different durations
-    if (formData.subscriptionDuration === 15) basePrice = 800;
-    else if (formData.subscriptionDuration === 10) basePrice = 600;
-    else if (formData.subscriptionDuration === 7) basePrice = 450;
-  
-    // Add shower price only for 30-day subscriptions
-    const finalPrice = formData.subscriptionDuration === 30 && formData.shower ? 1800 : basePrice;
-  
-    setFormData(prev => ({
-      ...prev,
-      price: finalPrice
-    }));
-  }, [formData.subscriptionDuration, formData.shower]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,24 +128,42 @@ export default function AddSubscriber({ onSuccess, renewSubscriber }: AddSubscri
     onSuccess();
   };
 
+  const calculatePrice = (duration: number, hasShower: boolean): number => {
+    let basePrice = 1500;
+  
+    if (duration === 15) basePrice = 800;
+    else if (duration === 10) basePrice = 600;
+    else if (duration === 7) basePrice = 450;
+  
+    // Add shower price only for 30-day subscriptions
+    const finalPrice = duration === 30 && hasShower ? 1800 : basePrice;
+    return finalPrice;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    
-    if (type === 'checkbox') {
+
+    if (name === 'name') {
+      setError('');
+    }
+
+    if (type === 'checkbox' && name === 'shower') {
       const checked = (e.target as HTMLInputElement).checked;
-      setFormData(prev => ({
-        ...prev,
-        [name]: checked
-      }));
+      setFormData(prev => {
+        const newPrice = calculatePrice(prev.subscriptionDuration, checked);
+        return { ...prev, shower: checked, price: newPrice };
+      });
+    } else if (name === 'subscriptionDuration') {
+      const newDuration = Number(value);
+      setFormData(prev => {
+        const newPrice = calculatePrice(newDuration, prev.shower);
+        return { ...prev, subscriptionDuration: newDuration, price: newPrice };
+      });
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value
       }));
-    }
-
-    if (name === 'name') {
-      setError('');
     }
   };
 
@@ -564,7 +564,6 @@ export default function AddSubscriber({ onSuccess, renewSubscriber }: AddSubscri
                 value={formData.price}
                 onChange={handleChange}
                 min="0"
-                step="0.01"
                 className="w-full px-4 py-3 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-700 text-white transition-all duration-200"
               />
             </div>
