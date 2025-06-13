@@ -9,8 +9,9 @@ import Expenses from './Expenses';
 import Statistics from './Statistics';
 import Notifications from './Notifications';
 import DatabaseManager from './DatabaseManager';
+import WorkoutPrograms from './WorkoutPrograms';
 
-type ActiveView = 'subscribers' | 'add-subscriber' | 'individual-classes' | 'inventory' | 'expenses' | 'statistics' | 'notifications' | 'database';
+type ActiveView = 'subscribers' | 'add-subscriber' | 'individual-classes' | 'inventory' | 'expenses' | 'statistics' | 'notifications' | 'database' | 'workout-programs';
 
 export default function Dashboard() {
   const [activeView, setActiveView] = useState<ActiveView>('subscribers');
@@ -143,6 +144,19 @@ export default function Dashboard() {
             <DatabaseManager />
           </motion.div>
         );
+      case 'workout-programs':
+        return (
+          <motion.div
+            key="workout-programs"
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={pageTransition}
+          >
+            <WorkoutPrograms />
+          </motion.div>
+        );
       default:
         return (
           <motion.div
@@ -169,13 +183,15 @@ export default function Dashboard() {
       transition={{ duration: 0.5 }}
       className="min-h-screen bg-gray-900"
     >
-      <div className="flex h-screen bg-gray-900">
+      <div className="flex h-screen bg-gray-900 overflow-hidden">
         <Sidebar activeView={activeView} setActiveView={setActiveView} />
-        <main className="flex-1 overflow-auto">
-          <div className="p-6">
-            <AnimatePresence mode="wait">
-              {renderContent()}
-            </AnimatePresence>
+        <main className="flex-1 overflow-hidden">
+          <div className="h-full overflow-y-auto">
+            <div className="p-6 min-h-full">
+              <AnimatePresence mode="wait">
+                {renderContent()}
+              </AnimatePresence>
+            </div>
           </div>
         </main>
       </div>

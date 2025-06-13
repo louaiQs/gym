@@ -86,6 +86,14 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Fix for dashboard white space issue */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 /* Custom scrollbar with enhanced styling */
 ::-webkit-scrollbar {
   width: 8px;
