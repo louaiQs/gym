@@ -11,7 +11,8 @@ import {
   Database,
   Receipt,
   GraduationCap,
-  Info
+  Info,
+  Dumbbell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AboutModal from './AboutModal';
@@ -29,6 +30,7 @@ export default function Sidebar({ activeView, setActiveView }: SidebarProps) {
     { id: 'subscribers', label: 'قائمة المشتركين', icon: Users },
     { id: 'add-subscriber', label: 'إضافة مشترك', icon: UserPlus },
     { id: 'individual-classes', label: 'الحصص الفردية', icon: GraduationCap },
+    { id: 'workout-programs', label: 'برامج التمرين', icon: Dumbbell },
     { id: 'inventory', label: 'المخزون', icon: Package },
     { id: 'expenses', label: 'المصروفات', icon: Receipt },
     { id: 'statistics', label: 'الإحصائيات', icon: BarChart3 },
@@ -42,13 +44,13 @@ export default function Sidebar({ activeView, setActiveView }: SidebarProps) {
         initial={{ x: -20, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-64 bg-gray-800 border-l border-gray-700 flex flex-col"
+        className="w-64 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden"
       >
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="p-6 border-b border-gray-700"
+          className="p-6 border-b border-gray-700 flex-shrink-0"
         >
           <div className="flex items-center gap-3">
             <motion.div 
@@ -64,7 +66,7 @@ export default function Sidebar({ activeView, setActiveView }: SidebarProps) {
           </div>
         </motion.div>
 
-        <nav className="flex-1 p-4">
+        <nav className="flex-1 p-4 overflow-y-auto">
           <ul className="space-y-2">
             {menuItems.map((item, index) => {
               const Icon = item.icon;
@@ -96,7 +98,7 @@ export default function Sidebar({ activeView, setActiveView }: SidebarProps) {
           </ul>
         </nav>
 
-        <div className="p-4 border-t border-gray-700 space-y-2">
+        <div className="p-4 border-t border-gray-700 space-y-2 flex-shrink-0">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
